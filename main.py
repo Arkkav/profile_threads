@@ -1,8 +1,10 @@
+import asyncio
+
 from memory_profiler import profile, memory_usage, CodeMap
 from threading import Thread
 from threading import settrace as threading_settrace
 from sys import settrace
-from asyncio import iscoroutinefunction, coroutine
+from asyncio import iscoroutinefunction, coroutine, wait
 import psutil
 import os
 import time
@@ -12,6 +14,7 @@ import numpy as np
 from functools import wraps
 from memory_profiler import choose_backend, choose_backend, partial, LineProfiler, show_results, tracemalloc, \
     has_tracemalloc
+from concurrent.futures import ThreadPoolExecutor
 
 _TWO_20 = float(2 ** 20)
 
@@ -170,14 +173,13 @@ def mem_profiler(func):
 
 # @mem_profiler
 # @profile
-def run():
-    create_array()
-    x = Thread(target=create_array)
-    x.start()
+async def run():
+    await create_array()
+
 
 # @profile
 @mem_profiler
-def create_array():
+async def create_array():
     a = [1] * 10000
     b = [1] * 10
     d = [1] * 100
@@ -186,7 +188,9 @@ def create_array():
     k = b
     f = b
     del a
-    create_another_array()
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=2)
+    await loop.run_in_executor(executor, create_another_array)
     return
 
 
@@ -196,5 +200,6 @@ def create_another_array():
     return
 
 if __name__ == '__main__':
-    run()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run())
 
